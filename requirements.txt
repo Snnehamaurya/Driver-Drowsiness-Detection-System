@@ -1,0 +1,10 @@
+opencv-python-headless
+mediapipe
+numpy
+ultralytics
+Pillow
+flask
+flask-socketio
+gevent
+gevent-websocket
+gunicorn
