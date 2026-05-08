@@ -1,13 +1,3 @@
----
-title: AI Driver Drowsiness Detection Pro
-emoji: 😴
-colorFrom: indigo
-colorTo: blue
-sdk: docker
-app_port: 7860
-pinned: false
----
-
 # AI Driver Drowsiness & Distraction Detection System (Web Edition)
 
 A complete production-ready AI-based Driver Drowsiness Detection System built using Python. This application monitors the driver in real-time via a webcam and triggers voice warnings and alarms when signs of drowsiness (closing eyes, yawning) or distraction (looking away, using a cell phone) are detected.
