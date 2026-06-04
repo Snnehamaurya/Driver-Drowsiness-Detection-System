@@ -14,7 +14,7 @@ monitor = DrowsinessMonitor()
 import os
 
 # Resend API Configuration
-RESEND_API_KEY = os.environ.get('RESEND_API_KEY', 're_Fgc71qpU_He33FeahDv5cWvpahg1f7SYb')
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', 'key')
 
 def send_email_alert(recipient_email, subject, body):
     """Sends email alert via Resend HTTP API to bypass blocked SMTP ports on Hugging Face."""
