@@ -397,6 +397,57 @@ input[type="range"]::-webkit-slider-thumb:hover {
     color: var(--text-secondary);
 }
 
+/* Text Inputs */
+.input-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+}
+
+.input-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.input-label i {
+    width: 16px;
+    text-align: center;
+    color: var(--cyan);
+}
+
+.text-input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text-primary);
+    font-family: var(--font-stack);
+    font-size: 0.85rem;
+    outline: none;
+    transition: var(--transition);
+    width: 100%;
+}
+
+.text-input:focus {
+    border-color: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan-glow);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+body.light-mode .text-input {
+    background: rgba(0, 0, 0, 0.03);
+    color: var(--text-primary-light);
+}
+
+body.light-mode .text-input:focus {
+    background: rgba(0, 0, 0, 0.05);
+}
+
 /* Toggle Switches */
 .toggle-switch-container {
     display: flex;

@@ -63,6 +63,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const systemStatusInd = document.getElementById('system-status-indicator');
     const fpsCounter = document.getElementById('fps-counter');
 
+    // Emergency Contact Selectors
+    const emergencyNameInput = document.getElementById('emergency-name');
+    const emergencyContactInput = document.getElementById('emergency-contact');
+    const saveEmergencyBtn = document.getElementById('save-emergency-btn');
+
     // ----------------------------------------------------
     // State Variables
     // ----------------------------------------------------
@@ -87,6 +92,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let audioCtx = null;
     let alarmInterval = null;
     let lastSpokenTime = 0;
+
+    // Emergency Contact & Timer State
+    let eyesClosedStartTimestamp = null;
+    let emergencyAlertSent = false;
 
     // ----------------------------------------------------
     // Initialization: Chart.js Setup
@@ -207,6 +216,30 @@ document.addEventListener('DOMContentLoaded', () => {
         marThreshVal.textContent = parseFloat(e.target.value).toFixed(2);
     });
 
+    // Load saved Emergency Contact details
+    const loadEmergencyContact = () => {
+        const name = localStorage.getItem('emergencyName') || '';
+        const contact = localStorage.getItem('emergencyContact') || '';
+        emergencyNameInput.value = name;
+        emergencyContactInput.value = contact;
+    };
+    loadEmergencyContact();
+
+    // Save Emergency Contact details
+    saveEmergencyBtn.addEventListener('click', () => {
+        const name = emergencyNameInput.value.trim();
+        const contact = emergencyContactInput.value.trim();
+        
+        localStorage.setItem('emergencyName', name);
+        localStorage.setItem('emergencyContact', contact);
+        
+        if (name && contact) {
+            appendLog(`Emergency Contact saved: ${name} (${contact})`, 'success');
+        } else {
+            appendLog(`Emergency Contact cleared / empty.`, 'warn');
+        }
+    });
+
     // ----------------------------------------------------
     // Helper Functions
     // ----------------------------------------------------
@@ -219,6 +252,59 @@ document.addEventListener('DOMContentLoaded', () => {
         
         logStream.appendChild(entry);
         logStream.scrollTop = logStream.scrollHeight;
+    }
+
+    function sendEmergencyAlert(lat, lon, mapsLink) {
+        const familyName = localStorage.getItem('emergencyName') || 'Emergency Contact';
+        const familyContact = localStorage.getItem('emergencyContact') || '';
+        
+        appendLog(`Initiating dispatch of live location to family contact: ${familyName}...`, 'warn');
+        
+        fetch('/api/emergency', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: familyName,
+                contact: familyContact,
+                latitude: lat,
+                longitude: lon,
+                maps_link: mapsLink
+            })
+        })
+        .then(res => {
+            if (!res.ok) throw new Error("Server responded with error status");
+            return res.json();
+        })
+        .then(data => {
+            appendLog(`EMERGENCY: Location successfully dispatched to ${familyName} (${familyContact})!`, 'critical');
+            speakVoiceWarning(`Emergency warning: Live location sent to emergency contact.`);
+        })
+        .catch(err => {
+            console.error("Emergency dispatch API failed: ", err);
+            appendLog(`Failed to dispatch emergency API: ${err.message}`, 'critical');
+        });
+    }
+
+    function triggerEmergencyAlert() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    const mapsLink = `https://www.google.com/maps?q=${lat},${lon}`;
+                    sendEmergencyAlert(lat, lon, mapsLink);
+                },
+                (error) => {
+                    console.error("Geolocation error: ", error);
+                    appendLog(`Geolocation warning: could not retrieve coordinates (${error.message}). Sending alert without coordinates.`, 'warn');
+                    sendEmergencyAlert(null, null, null);
+                },
+                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+            );
+        } else {
+            appendLog(`Geolocation not supported by browser. Sending alert without coordinates.`, 'warn');
+            sendEmergencyAlert(null, null, null);
+        }
     }
     
     clearLogsBtn.addEventListener('click', () => {
@@ -558,12 +644,49 @@ document.addEventListener('DOMContentLoaded', () => {
         systemStatusInd.className = `system-status-indicator ${statusClass}`;
         systemStatusInd.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${activeStatusText}`;
 
+        // --- 1-Minute Eyes-Closed Emergency Tracker ---
+        let emergencyCountdownText = null;
+        if (stats.face_detected && stats.ear < stats.ear_thresh) {
+            if (!eyesClosedStartTimestamp) {
+                eyesClosedStartTimestamp = Date.now();
+            }
+            const elapsedMs = Date.now() - eyesClosedStartTimestamp;
+            const elapsedSecs = Math.floor(elapsedMs / 1000);
+            const remainingSecs = Math.max(0, 60 - elapsedSecs);
+            
+            if (elapsedSecs >= 60) {
+                if (!emergencyAlertSent) {
+                    emergencyAlertSent = true;
+                    appendLog("CRITICAL: Eyes closed for more than 1 minute!", "critical");
+                    triggerEmergencyAlert();
+                }
+                emergencyCountdownText = "EMERGENCY ALERT DISPATCHED!";
+            } else {
+                emergencyCountdownText = `Emergency dispatch in ${remainingSecs}s!`;
+                if (elapsedSecs > 0 && elapsedSecs % 5 === 0) {
+                    // Throttled log warning
+                    const familyName = localStorage.getItem('emergencyName') || 'Emergency Contact';
+                    appendLog(`Safety Alert: Eyes closed for ${elapsedSecs}s. Dispatching to ${familyName} in ${remainingSecs}s!`, 'warn');
+                }
+            }
+        } else {
+            if (eyesClosedStartTimestamp) {
+                appendLog("Eyes opened or face lost. Resetting emergency countdown timer.", "info");
+            }
+            eyesClosedStartTimestamp = null;
+            emergencyAlertSent = false;
+        }
+
         // Canvas overlay warning banner
         if (alertActive) {
             overlayAlert.classList.add('active');
             alertTitle.textContent = stats.status_message;
             if (stats.drowsy) {
-                alertDesc.textContent = "Sustained Eye Closure: Please Open Eyes!";
+                if (emergencyCountdownText) {
+                    alertDesc.textContent = `Sustained Eye Closure: ${emergencyCountdownText}`;
+                } else {
+                    alertDesc.textContent = "Sustained Eye Closure: Please Open Eyes!";
+                }
             } else if (stats.phone_alert) {
                 alertDesc.textContent = "Cell Phone Usage is Forbidden While Driving!";
             } else {
