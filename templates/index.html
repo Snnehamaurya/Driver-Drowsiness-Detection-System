@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel AI - Driver Drowsiness & Distraction Detection Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for real-time analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom Style Sheet -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="dark-mode">
+    <div class="glow-backdrop"></div>
+    
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="main-header">
+            <div class="logo-area">
+                <i class="fa-solid fa-shield-halved logo-icon"></i>
+                <div class="logo-text">
+                    <h1>SENTINEL <span class="accent-text">AI</span></h1>
+                    <p class="subtitle">Driver Monitoring System</p>
+                </div>
+            </div>
+            <div class="header-stats">
+                <div class="stat-badge">
+                    <span class="dot blinking green-dot" id="connection-status-dot"></span>
+                    <span id="connection-status-text">Connecting...</span>
+                </div>
+                <div class="stat-badge hidden-mobile">
+                    <i class="fa-solid fa-clock"></i>
+                    <span id="session-timer">00:00:00</span>
+                </div>
+                <button class="theme-toggle" id="theme-toggle-btn" title="Toggle Light/Dark Mode">
+                    <i class="fa-solid fa-moon"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="main-grid">
+            <!-- LEFT PANEL: SYSTEM CONTROLS -->
+            <aside class="control-panel glass-card">
+                <div class="panel-header">
+                    <h2><i class="fa-solid fa-sliders"></i> Configuration</h2>
+                </div>
+                
+                <!-- Main Toggles -->
+                <div class="control-group">
+                    <button class="btn btn-primary btn-block" id="system-toggle-btn">
+                        <i class="fa-solid fa-power-off"></i> Start Monitoring
+                    </button>
+                    <button class="btn btn-secondary btn-block" id="reset-btn">
+                        <i class="fa-solid fa-arrows-rotate"></i> Reset Analytics
+                    </button>
+                </div>
+
+                <hr class="separator">
+
+                <!-- Alert Configuration -->
+                <div class="panel-section">
+                    <h3>Detection Settings</h3>
+                    
+                    <div class="slider-container">
+                        <div class="slider-labels">
+                            <span class="label-title">Eye Closure (EAR)</span>
+                            <span class="label-val" id="ear-thresh-val">0.22</span>
+                        </div>
+                        <input type="range" id="ear-thresh-slider" min="0.10" max="0.35" step="0.01" value="0.22">
+                        <span class="slider-help">Lower = less sensitive to partial eye closures</span>
+                    </div>
+
+                    <div class="slider-container">
+                        <div class="slider-labels">
+                            <span class="label-title">Yawn Height (MAR)</span>
+                            <span class="label-val" id="mar-thresh-val">0.50</span>
+                        </div>
+                        <input type="range" id="mar-thresh-slider" min="0.30" max="0.80" step="0.01" value="0.50">
+                        <span class="slider-help">Higher = requires wider yawn to trigger</span>
+                    </div>
+                    
+                    <button class="btn btn-outline btn-block" id="save-settings-btn">
+                        <i class="fa-solid fa-check"></i> Apply Sensitivity
+                    </button>
+                </div>
+
+                <hr class="separator">
+
+                <!-- Audio Settings -->
+                <div class="panel-section">
+                    <h3>Alert Preferences</h3>
+                    <div class="toggle-switch-container">
+                        <label class="switch-label">
+                            <i class="fa-solid fa-volume-high"></i> Play Siren Alarm
+                        </label>
+                        <label class="switch">
+                            <input type="checkbox" id="sound-alert-toggle" checked>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+
+                    <div class="toggle-switch-container">
+                        <label class="switch-label">
+                            <i class="fa-solid fa-comment-dots"></i> Speak Voice Warnings
+                        </label>
+                        <label class="switch">
+                            <input type="checkbox" id="voice-alert-toggle" checked>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Footer Status -->
+                <div class="panel-footer">
+                    <div class="system-status-indicator" id="system-status-indicator">
+                        <i class="fa-solid fa-circle-info"></i> System is Idle
+                    </div>
+                </div>
+            </aside>
+
+            <!-- MIDDLE PANEL: VIDEO FEED & REAL-TIME PLOTS -->
+            <main class="feed-panel">
+                <!-- Live Video Card -->
+                <div class="video-card glass-card relative-container" id="video-container">
+                    <div class="overlay-alert" id="overlay-alert">
+                        <div class="alert-content">
+                            <i class="fa-solid fa-triangle-exclamation alert-icon"></i>
+                            <h2 id="alert-title">DROWSINESS DETECTED!</h2>
+                            <p id="alert-desc">Please open your eyes or pull over safely.</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Webcam Stream Handler -->
+                    <video id="webcam" autoplay playsinline muted width="640" height="480" class="hidden-element"></video>
+                    
+                    <!-- Annotated Stream Display -->
+                    <canvas id="annotated-canvas" width="640" height="480" class="main-canvas"></canvas>
+                    
+                    <!-- Empty State Placeholder -->
+                    <div class="canvas-placeholder" id="canvas-placeholder">
+                        <i class="fa-solid fa-video-slash placeholder-icon"></i>
+                        <p class="placeholder-text">Camera Feed Offline</p>
+                        <p class="placeholder-subtext">Click "Start Monitoring" to activate camera stream</p>
+                    </div>
+
+                    <!-- Floating Frame FPS -->
+                    <div class="floating-badge fps-badge" id="fps-counter">
+                        FPS: 0
+                    </div>
+                </div>
+
+                <!-- Real-Time Metrics Analytics -->
+                <div class="analytics-card glass-card">
+                    <div class="panel-header">
+                        <h2><i class="fa-solid fa-chart-line"></i> Real-Time Eye & Mouth Tracking</h2>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="realtime-chart"></canvas>
+                    </div>
+                </div>
+            </main>
+
+            <!-- RIGHT PANEL: METRIC CARDS & REAL-TIME LOGS -->
+            <aside class="metrics-panel">
+                <!-- FATIGUE SPEEDOMETER / PROGRESS -->
+                <div class="fatigue-card glass-card text-center">
+                    <h3>FATIGUE SCORE</h3>
+                    <div class="fatigue-ring-container">
+                        <svg class="progress-ring" width="160" height="160">
+                            <circle class="progress-ring__background" stroke="#22272e" stroke-width="12" fill="transparent" r="70" cx="80" cy="80"/>
+                            <circle class="progress-ring__circle" id="fatigue-ring" stroke="var(--cyan)" stroke-width="12" stroke-dasharray="440" stroke-dashoffset="440" fill="transparent" r="70" cx="80" cy="80"/>
+                        </svg>
+                        <div class="fatigue-number font-orbitron" id="fatigue-score-value">0%</div>
+                    </div>
+                    <p class="metric-status" id="fatigue-status">System Calibrated</p>
+                </div>
+
+                <!-- METRICS GRID -->
+                <div class="metrics-grid">
+                    <!-- EAR -->
+                    <div class="metric-widget glass-card" id="ear-widget">
+                        <div class="widget-header">
+                            <span>Eye Aspect (EAR)</span>
+                            <i class="fa-regular fa-eye"></i>
+                        </div>
+                        <div class="widget-value font-orbitron" id="ear-val">0.00</div>
+                        <div class="widget-progress">
+                            <div class="progress-bar" id="ear-progress" style="width: 0%"></div>
+                        </div>
+                        <span class="widget-status" id="ear-status">Eyes Open</span>
+                    </div>
+
+                    <!-- MAR -->
+                    <div class="metric-widget glass-card" id="mar-widget">
+                        <div class="widget-header">
+                            <span>Mouth Yawn (MAR)</span>
+                            <i class="fa-regular fa-face-mouth-open fa-surprise"></i>
+                        </div>
+                        <div class="widget-value font-orbitron" id="mar-val">0.00</div>
+                        <div class="widget-progress">
+                            <div class="progress-bar" id="mar-progress" style="width: 0%"></div>
+                        </div>
+                        <span class="widget-status" id="mar-status">Mouth Normal</span>
+                    </div>
+
+                    <!-- HEAD POSE (YAW) -->
+                    <div class="metric-widget glass-card" id="pose-widget">
+                        <div class="widget-header">
+                            <span>Head Yaw (Rotation)</span>
+                            <i class="fa-solid fa-arrows-left-right"></i>
+                        </div>
+                        <div class="widget-value font-orbitron" id="yaw-val">0.0°</div>
+                        <div class="widget-sub-values">
+                            <span>Pitch: <span id="pitch-val">0.0°</span></span>
+                            <span>Roll: <span id="roll-val">0.0°</span></span>
+                        </div>
+                        <span class="widget-status" id="pose-status">Looking Center</span>
+                    </div>
+
+                    <!-- PHONE DETECTION -->
+                    <div class="metric-widget glass-card" id="phone-widget">
+                        <div class="widget-header">
+                            <span>Phone Activity</span>
+                            <i class="fa-solid fa-mobile-screen-button"></i>
+                        </div>
+                        <div class="widget-value font-orbitron" id="phone-val">CLEARED</div>
+                        <div class="widget-progress">
+                            <div class="progress-bar" id="phone-progress" style="width: 0%"></div>
+                        </div>
+                        <span class="widget-status" id="phone-status">No Phone Detected</span>
+                    </div>
+                </div>
+
+                <!-- EVENT HISTORY LOG -->
+                <div class="logs-card glass-card flex-grow-container">
+                    <div class="panel-header">
+                        <h2><i class="fa-solid fa-list-ul"></i> Security Session Logs</h2>
+                        <button class="btn-clear" id="clear-logs-btn" title="Clear Event Logs"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                    <div class="log-stream" id="log-stream">
+                        <div class="log-entry system-msg">
+                            <span class="log-time">[System]</span> Dashboard UI initialized. Ready to start monitoring.
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Socket.IO Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
+    <!-- Custom JS script -->
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
