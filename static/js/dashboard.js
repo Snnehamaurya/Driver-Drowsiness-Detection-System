@@ -843,7 +843,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         frameTimeout = setTimeout(() => {
             frameTimeout = requestAnimationFrame(sendNextFrame);
-        }, 40);
+        }, 180);
     }
 
     function updateSessionTimer() {
