@@ -13,34 +13,47 @@ monitor = DrowsinessMonitor()
 
 import os
 
-# Email SMTP settings (Set these via environment variables, or edit placeholders here)
-SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'snnehamaurya123@gmail.com')
-SENDER_PASSWORD = os.environ.get('SENDER_PASSWORD', 'xoynizwublylnhez') # Gmail App Password (16 chars)
-SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
-SMTP_PORT = int(os.environ.get('SMTP_PORT', 465))
+# Resend API Configuration
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', 're_Fgc71qpU_He33FeahDv5cWvpahg1f7SYb')
 
 def send_email_alert(recipient_email, subject, body):
-    """Sends email alert via SMTP_SSL using configured sender credentials."""
-    import smtplib
-    from email.mime.text import MIMEText
+    """Sends email alert via Resend HTTP API to bypass blocked SMTP ports on Hugging Face."""
+    import urllib.request
+    import urllib.error
+    import json
     
-    if SENDER_EMAIL == 'your_email@gmail.com' or SENDER_PASSWORD == 'your_app_password':
-        print("[EMAIL WARNING] Email credentials not configured in app.py. Skipping email send.")
+    if RESEND_API_KEY == 'your_resend_api_key_here':
+        print("[EMAIL WARNING] Resend API key not configured. Skipping email send.")
         return False
         
+    url = "https://api.resend.com/emails"
+    html_body = body.replace('\n', '<br>')
+    
+    payload = {
+        "from": "onboarding@resend.dev",
+        "to": recipient_email,
+        "subject": subject,
+        "html": html_body
+    }
+    
+    headers = {
+        "Authorization": f"Bearer {RESEND_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
     try:
-        msg = MIMEText(body)
-        msg['Subject'] = subject
-        msg['From'] = SENDER_EMAIL
-        msg['To'] = recipient_email
-        
-        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
-            server.login(SENDER_EMAIL, SENDER_PASSWORD)
-            server.send_message(msg)
-        print(f"[EMAIL SUCCESS] Email alert successfully sent to {recipient_email}")
-        return True
+        data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(url, data=data, headers=headers, method='POST')
+        with urllib.request.urlopen(req, timeout=10) as response:
+            res_data = response.read().decode('utf-8')
+            print(f"[EMAIL SUCCESS] Email alert sent via Resend API: {res_data}")
+            return True
+    except urllib.error.HTTPError as e:
+        err_msg = e.read().decode('utf-8')
+        print(f"[EMAIL ERROR] Resend API HTTP error: {e.code} - {err_msg}")
+        return False
     except Exception as e:
-        print(f"[EMAIL ERROR] Failed to send email to {recipient_email}: {e}")
+        print(f"[EMAIL ERROR] Failed to send email via Resend API: {e}")
         return False
 
 @app.route('/')
